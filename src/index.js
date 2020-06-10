@@ -4,13 +4,13 @@ import "./styles.css";
 const playerMarkers = ["x", "o"];
 const playerBackground = ["rgb(124,252,0)", "rgb(250,128,114)"];
 const noPlayers = playerMarkers.length;
+var isPlaying = 0; //dummy variable for indicating if the game is being played or not
 var board; //board  this is going to be 2D
 var N = 5; //board size
 var turn = 1; //player's turn
 const timeOutInSec = 10; //time in seconds to make your move
-var timer = null;
-var winner = -1;
-var id = null;
+var turnTimeOutTimer = null;
+var progressBarTimer = null;
 
 //initialization
 if (document.readyState !== "loading") {
@@ -27,6 +27,7 @@ if (document.readyState !== "loading") {
 
 //
 function initializeCode() {
+  isPlaying = 1;
   board = [];
   addTable(N);
   initialize2DArray(board, N, N);
@@ -56,13 +57,13 @@ function initializeCode() {
     document.querySelector("#board").onclick = function(ev) {
       var rowIndex = ev.target.parentElement.rowIndex;
       var cellIndex = ev.target.cellIndex;
-      if (timer != null) {
+      if (turnTimeOutTimer != null) {
         stopTimeout();
       }
       updateTurn(rowIndex, cellIndex);
       checkWinner();
       manageTurns();
-      if (winner === -1) {
+      if (isPlaying === 1) {
         startTimeout(); //reset progressbar here also
       }
     };
@@ -84,18 +85,25 @@ function moveProgressBar() {
   /*
   https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_progressbar_3
   */
-  clearInterval(id);
+  clearInterval(progressBarTimer);
   var elem = document.getElementById("progressBar");
   var width = 1;
-  id = setInterval(frame, (timeOutInSec * 1000) / 100);
+  var seconds = 0;
+
+  progressBarTimer = setInterval(frame, (timeOutInSec * 1000) / 100);
 
   function frame() {
     if (width >= 100) {
-      clearInterval(id);
+      clearInterval(progressBarTimer);
     } else {
       width++;
       elem.style.width = width + "%"; //update the bar
-      elem.innerHTML = width + "%"; //update displayed percentage
+      //elem.innerHTML = "Player " +turn+ "'s, " +width + "%"; //update displayed percentage
+      seconds = (timeOutInSec * width) / 100;
+      seconds = timeOutInSec - seconds;
+      seconds = Math.round(seconds * 100) / 100;
+
+      elem.innerHTML = "Player " + turn + ", " + seconds + " s"; //update displayed percentage
     }
   }
 }
@@ -103,15 +111,21 @@ function moveProgressBar() {
 //
 function startTimeout() {
   moveProgressBar();
-  timer = setInterval(function() {
+  turnTimeOutTimer = setInterval(function() {
     manageTurns();
     moveProgressBar();
   }, timeOutInSec * 1000);
 }
 
+function stopGame() {
+  stopTimeout();
+  clearInterval(progressBarTimer);
+  isPlaying = 0;
+}
+
 //
 function stopTimeout() {
-  clearInterval(timer);
+  clearInterval(turnTimeOutTimer);
 }
 
 function initialize2DArray(arr, nrows, ncols) {
@@ -200,14 +214,16 @@ function checkWinner() {
     const nRows = arr.length;
     var res = [-1, -1];
 
-    for (var i = 0; i < nRows; i++) {
+    outerLoop: for (var i = 0; i < nRows; i++) {
       for (var j = 0; j < noPlayers; j++) {
         if (arr[i][j] == N) {
           //Note the equality sign here! Triple signs DON'T work here.
           res = [i + 1, j + 1];
           alert("Player " + (j + 1) + " won!"); //or use 'turn' in place of (j+1)
-          winner = j;
-          break;
+
+          //Winner found, immediately stop all counters etc.
+          stopGame();
+          break outerLoop;
         }
       }
     }
